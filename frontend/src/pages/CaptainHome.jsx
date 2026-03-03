@@ -6,6 +6,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import ConfirmRidePopUp from '../components/ConfirmRidePopUp'
 import { useEffect, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SocketContext } from '../context/SocketContext'
 import { CaptainDataContext } from '../context/CapatainContext'
 import axios from 'axios'
@@ -19,12 +20,32 @@ const CaptainHome = () => {
     const confirmRidePopupPanelRef = useRef(null)
     const [ ride, setRide ] = useState(null)
 
+    const navigate = useNavigate()
     const { socket } = useContext(SocketContext)
-    const { captain } = useContext(CaptainDataContext)
+    const { captain, setCaptain } = useContext(CaptainDataContext)
+
+    useEffect(() => {
+        const token = localStorage.getItem('token')
+        if (token && !captain) {
+            axios.get(`${import.meta.env.VITE_BASE_URL}/captains/profile`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }).then(response => {
+                if (response.status === 200) {
+                    setCaptain(response.data.captain)
+                }
+            }).catch(err => {
+                console.error('Error fetching captain profile:', err)
+                localStorage.removeItem('token')
+                navigate('/captain-login')
+            })
+        }
+    }, [])
 
     useEffect(() => {
         socket.emit('join', {
-            userId: captain._id,
+            userId: captain?._id,
             userType: 'captain'
         })
         const updateLocation = () => {
@@ -32,7 +53,7 @@ const CaptainHome = () => {
                 navigator.geolocation.getCurrentPosition(position => {
 
                     socket.emit('update-location-captain', {
-                        userId: captain._id,
+                        userId: captain?._id,
                         location: {
                             ltd: position.coords.latitude,
                             lng: position.coords.longitude
@@ -60,7 +81,7 @@ const CaptainHome = () => {
         const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/confirm`, {
 
             rideId: ride._id,
-            captainId: captain._id,
+            captainId: captain?._id,
 
 
         }, {

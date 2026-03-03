@@ -1,25 +1,43 @@
 
-import React, { createContext, useEffect } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 
 export const SocketContext = createContext();
 
-const socket = io(`${import.meta.env.VITE_BASE_URL}`); // Replace with your server URL
-
 const SocketProvider = ({ children }) => {
+    const [socket, setSocket] = useState(null);
+
     useEffect(() => {
-        // Basic connection logic
-        socket.on('connect', () => {
-            console.log('Connected to server');
+        const backendUrl = import.meta.env.VITE_BASE_URL;
+        
+        if (!backendUrl) {
+            console.error('VITE_BASE_URL is not defined in .env file');
+            return;
+        }
+
+        const newSocket = io(backendUrl, {
+            transports: ['websocket'],
+            withCredentials: true,
         });
 
-        socket.on('disconnect', () => {
+        newSocket.on('connect', () => {
+            console.log('Connected to server:', newSocket.id);
+        });
+
+        newSocket.on('disconnect', () => {
             console.log('Disconnected from server');
         });
 
+        newSocket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err.message);
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+            newSocket.close();
+        };
     }, []);
-
-
 
     return (
         <SocketContext.Provider value={{ socket }}>
